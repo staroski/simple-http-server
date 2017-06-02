@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.activation.MimetypesFileTypeMap;
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -17,7 +19,7 @@ import com.sun.net.httpserver.HttpHandler;
  *
  * @author ricardo.staroski
  */
-public class Page {
+public class Resource {
 
 	public final String context;
 	public final String resource;
@@ -26,39 +28,62 @@ public class Page {
 
 	private Map<String, String> attributes = new HashMap<>();
 
-	public Page(String resource) {
+	public Resource(String resource) {
 		this(resource, resource);
 	}
 
-	public Page(String context, String resource) {
+	public Resource(String context, String resource) {
 		this.context = context;
 		this.resource = resource;
 	}
 
-	private byte[] applyAttributes(String content) {
+	private byte[] applyAttributes(byte[] bytes) {
+		String text = new String(bytes);
 		for (Entry<String, String> attribute : attributes.entrySet()) {
-			content = content.replaceAll("\\Q${" + attribute.getKey() + "}\\E", attribute.getValue());
+			text = text.replaceAll("\\Q${" + attribute.getKey() + "}\\E", attribute.getValue());
 		}
-		return content.getBytes();
+		return text.getBytes();
 	}
 
-	private String getContent() throws IOException {
+	private byte[] getContent() throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		InputStream in = getClass().getResourceAsStream(resource);
 		byte[] buffer = new byte[8192];
 		for (int read = -1; (read = in.read(buffer)) != -1; out.write(buffer, 0, read)) {}
 		out.flush();
-		byte[] bytes = out.toByteArray();
-		return new String(bytes);
+		return out.toByteArray();
 	}
 
 	private void process(HttpExchange exchange) throws IOException {
 		onLoad(ParamsFilter.getParams(exchange));
-		byte[] bytes = applyAttributes(getContent());
+		byte[] bytes = getContent();
+		String contentType = getContentType();
+		if (contentType.startsWith("text")) {
+			bytes = applyAttributes(bytes);
+		}
+		exchange.getResponseHeaders().set("Content-Type", contentType);
 		exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bytes.length);
 		OutputStream out = exchange.getResponseBody();
 		out.write(bytes);
 		out.close();
+	}
+
+	// TODO implement a map based on official list
+	// https://www.iana.org/assignments/media-types/media-types.xhtml
+	protected String getContentType() {
+		int index = resource.lastIndexOf('.');
+		if (index > -1) {
+			String extension = resource.substring(index).toLowerCase();
+			if (".css".equalsIgnoreCase(extension)) {
+				return "text/css";
+			}
+			if (".jpg".equalsIgnoreCase(extension)) {
+				return "image/png";
+			}
+		}
+		MimetypesFileTypeMap typeMap = new MimetypesFileTypeMap();
+		String contentType = typeMap.getContentType(resource);
+		return contentType;
 	}
 
 	/**

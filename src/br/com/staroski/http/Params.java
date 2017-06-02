@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * This class represents the request parameters received by the {@link Page Page}'s {@link Page#onLoad(Params) onLoad} method
+ * This class represents the request parameters received by the {@link Resource Page}'s {@link Resource#onLoad(Params) onLoad} method
  *
  * @author ricardo.staroski
  */

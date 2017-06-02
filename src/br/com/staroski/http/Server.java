@@ -13,15 +13,15 @@ import com.sun.net.httpserver.HttpServer;
 public final class Server {
 
 	private HttpServer server;
-	private final PageProvider provider;
+	private final ResourceProvider provider;
 
-	public Server(PageProvider provider) {
+	public Server(ResourceProvider provider) {
 		this.provider = provider;
 	}
 
 	public void start(int port) throws Throwable {
 		server = HttpServer.create(new InetSocketAddress(port), 0);
-		for (Page page : provider.getPages()) {
+		for (Resource page : provider.getResources()) {
 			HttpContext context = server.createContext(page.context, page.handler);
 			context.getFilters().add(new ParamsFilter());
 		}
